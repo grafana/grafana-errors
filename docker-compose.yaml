@@ -1,0 +1,47 @@
+version: "2"
+services:
+  faulty:
+    build: ./service/faulty/.
+    command: opentelemetry-instrument gunicorn faulty.wsgi -c gunicorn.config.py --workers 2 --threads 2 --reload --bind 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=faulty.settings
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=faulty
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.58.0
+    ports:
+      - "6831:6831"
+      - "14268:14268"
+      - "4317:4317"
+    volumes:
+      - ./config/otel-collector.yaml:/config/otel-collector.yaml
+    command:
+      - --config=/config/otel-collector.yaml
+
+  tempo:
+    image: tempo-local
+    command: ["-config.file=/etc/tempo.yaml"]
+    ports:
+      - "3100:3100"
+      - "4317"  # otlp grpc
+      - "4318"  # otlp http
+      - "9411"   # zipkin
+    volumes:
+      - ./config/tempo.yaml:/etc/tempo.yaml
+      - ./example-data/tempo:/tmp/tempo
+
+  grafana:
+    image: grafana/grafana:8.1.6
+    volumes:
+      - ./config/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    ports:
+      - "3000:3000"

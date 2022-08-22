@@ -1,0 +1,5 @@
+opentelemetry-exporter-otlp==1.7.1
+opentelemetry-instrumentation-django==0.26b1
+opentelemetry-distro==0.26b1
+Django
+gunicorn==20.0.4
